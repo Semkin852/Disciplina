@@ -507,84 +507,151 @@
   }
   .back-link:hover{color:var(--accent);}
 
-  .category-row{
-    display:flex;
-    border:1px solid var(--border);
-    border-radius:4px;
-    overflow-x:auto;
+  .category-grid{
+    display:grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap:10px;
     margin-bottom:26px;
-    background:var(--panel);
   }
   .category-tile{
-    flex:0 0 auto;
-    min-width:118px;
-    max-width:160px;
-    padding:16px 14px;
-    border-right:1px solid var(--border);
+    aspect-ratio: 1 / 1;
+    border-radius:4px;
+    padding:14px;
     cursor:pointer;
     position:relative;
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-end;
+    color:#fff;
+    overflow:hidden;
   }
-  .category-row .category-tile:last-of-type{ border-right:none; }
+  .category-tile.c0{ background:var(--accent); }
+  .category-tile.c1{ background:#2d3338; }
+  .category-tile.c2{ background:#7a3d22; }
+  .category-tile.c3{ background:#3a4146; }
   .category-tile .name{
-    font-size:14.5px;
-    font-weight:600;
-    margin-bottom:6px;
+    font-size:16px;
+    font-weight:700;
+    line-height:1.2;
     word-break:break-word;
-    padding-right:14px;
+    margin-bottom:4px;
   }
   .category-tile .sub{
     font-size:11px;
-    color:var(--text-dim);
+    color:rgba(255,255,255,0.75);
   }
   .category-tile .del{
     position:absolute;
-    top:6px; right:8px;
-    color:var(--text-faint);
-    font-size:13px;
+    top:8px; right:10px;
+    color:rgba(255,255,255,0.65);
+    font-size:15px;
     cursor:pointer;
     padding:2px;
+    line-height:1;
   }
-  .category-tile .del:hover{ color:var(--accent); }
+  .category-tile .del:hover{ color:#fff; }
   .category-add-tile{
-    flex:0 0 auto;
-    min-width:56px;
+    aspect-ratio: 1 / 1;
+    border-radius:4px;
+    border:1.5px dashed var(--border);
     display:flex;
     align-items:center;
     justify-content:center;
     cursor:pointer;
     color:var(--accent);
-    font-size:22px;
-    border-right:none;
+    font-size:30px;
   }
   .category-add-form{
-    flex:0 0 auto;
-    min-width:170px;
-    padding:10px;
+    aspect-ratio: 1 / 1;
+    border-radius:4px;
+    background:var(--panel);
+    border:1px solid var(--accent);
     display:flex;
-    gap:6px;
+    flex-direction:column;
+    justify-content:center;
+    padding:12px;
+    gap:8px;
   }
   .category-add-form input{
-    flex:1;
-    min-width:0;
     background:var(--panel-2);
-    border:1px solid var(--accent);
+    border:1px solid var(--border);
     border-radius:3px;
     color:var(--text);
     padding:6px 8px;
     font-size:13px;
     font-family:'IBM Plex Sans', sans-serif;
   }
-  .category-add-form input:focus{ outline:none; }
+  .category-add-form input:focus{ outline:none; border-color:var(--accent); }
   .category-add-form button{
     background:var(--accent);
     border:none;
     color:var(--bg);
     border-radius:3px;
-    padding:0 10px;
-    font-size:16px;
+    padding:6px 0;
+    font-size:14px;
     font-weight:600;
     cursor:pointer;
   }
+
+  /* ===== links ===== */
+  .links-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .link-tile{
+    width:104px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:10px 8px;
+    position:relative;
+    cursor:pointer;
+  }
+  .link-tile img{
+    width:20px; height:20px;
+    display:block;
+    margin-bottom:6px;
+    border-radius:3px;
+  }
+  .link-tile .lt-title{
+    font-size:12px;
+    font-weight:600;
+    word-break:break-word;
+    line-height:1.25;
+    margin-bottom:3px;
+  }
+  .link-tile .lt-domain{
+    font-size:10px;
+    color:var(--text-faint);
+    word-break:break-word;
+  }
+  .link-tile .lt-del{
+    position:absolute;
+    top:3px; right:5px;
+    color:var(--text-faint);
+    font-size:12px;
+    cursor:pointer;
+    padding:2px;
+  }
+  .link-tile .lt-del:hover{ color:var(--accent); }
+  .link-edit-row{
+    display:flex;
+    gap:6px;
+  }
+  .link-edit-row input{
+    flex:1;
+    min-width:0;
+    background:var(--panel-2);
+    border:1px solid var(--accent);
+    border-radius:3px;
+    color:var(--text);
+    padding:5px 6px;
+    font-size:11px;
+    font-family:'IBM Plex Sans', sans-serif;
+  }
+  .link-edit-row input:focus{ outline:none; }
 </style>
 </head>
 <body>
@@ -600,7 +667,7 @@ let state = {
   categories: [],
   currentCategoryId: null,
   addingCategory: false,
-  tasksCurrent: null, history: {}, tickers: [], expandedIds: new Set()
+  tasksCurrent: null, history: {}, tickers: [], links: [], expandedIds: new Set()
 };
 
 function fmt(d){
@@ -683,6 +750,9 @@ async function openCategory(id){
   let tickersRaw = await safeGet(keyFor(id, 'tickers'));
   let tickers = tickersRaw ? JSON.parse(tickersRaw) : [];
 
+  let linksRaw = await safeGet(keyFor(id, 'links'));
+  let links = linksRaw ? JSON.parse(linksRaw) : [];
+
   const t = todayStr();
 
   if(cur && cur.date !== t){
@@ -700,6 +770,7 @@ async function openCategory(id){
   state.history = history;
   state.tasksCurrent = cur;
   state.tickers = tickers;
+  state.links = links;
   state.expandedIds = new Set();
   state.view = 'category';
 
@@ -786,7 +857,7 @@ function buildHomeShell(){
       </div>
     </div>
     <div class="section-lbl">КАТЕГОРИИ</div>
-    <div class="category-row" id="categoryRow"></div>
+    <div class="category-grid" id="categoryRow"></div>
   `;
   const today = todayDate();
   document.getElementById('homeDateLine').textContent =
@@ -797,8 +868,8 @@ function renderHome(){
   const row = document.getElementById('categoryRow');
   if(!row) return;
 
-  row.innerHTML = state.categories.map(c=>`
-    <div class="category-tile" data-id="${c.id}">
+  row.innerHTML = state.categories.map((c,i)=>`
+    <div class="category-tile c${i%4}" data-id="${c.id}">
       <div class="del">×</div>
       <div class="name">${escapeHtml(c.name)}</div>
       <div class="sub mono" id="sub_${c.id}">…</div>
@@ -815,8 +886,7 @@ function renderHome(){
   state.categories.forEach(c=>{
     const tile = row.querySelector(`.category-tile[data-id="${c.id}"]`);
     if(!tile) return;
-    tile.querySelector('.name').onclick = ()=>openCategory(c.id);
-    tile.querySelector('.sub').onclick = ()=>openCategory(c.id);
+    tile.onclick = ()=>openCategory(c.id);
     tile.querySelector('.del').onclick = (e)=>{ e.stopPropagation(); onDeleteCategory(c.id, c.name); };
     loadCategoryPreview(c.id);
   });
@@ -868,9 +938,98 @@ async function onDeleteCategory(id, name){
   await safeDelete(keyFor(id, 'tasks-current'));
   await safeDelete(keyFor(id, 'history'));
   await safeDelete(keyFor(id, 'tickers'));
+  await safeDelete(keyFor(id, 'links'));
   state.categories = state.categories.filter(c=>c.id!==id);
   await persistCategories();
   renderHome();
+}
+
+/* ===== links ===== */
+function normalizeUrl(raw){
+  let s = raw.trim();
+  if(!s) return null;
+  if(!/^https?:\/\//i.test(s)) s = 'https://' + s;
+  try{
+    const u = new URL(s);
+    return u.href;
+  }catch(e){ return null; }
+}
+
+function hostnameOf(url){
+  try{ return new URL(url).hostname.replace(/^www\./,''); }catch(e){ return url; }
+}
+
+function renderLinks(){
+  const row = document.getElementById('linksRow');
+  if(!row) return;
+  row.innerHTML = state.links.map(l=>{
+    const domain = hostnameOf(l.url);
+    if(l.editing){
+      return `
+        <div class="link-tile" data-id="${l.id}" style="cursor:default;">
+          <div class="link-edit-row">
+            <input type="text" class="edit-link-title" value="${escapeHtml(l.title || domain)}" maxlength="60">
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="link-tile" data-id="${l.id}">
+        <div class="lt-del">×</div>
+        <img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64" alt="">
+        <div class="lt-title">${escapeHtml(l.title || domain)}</div>
+        <div class="lt-domain">${escapeHtml(domain)}</div>
+      </div>`;
+  }).join('');
+
+  state.links.forEach(l=>{
+    const tile = row.querySelector(`.link-tile[data-id="${l.id}"]`);
+    if(!tile) return;
+    if(l.editing){
+      const input = tile.querySelector('.edit-link-title');
+      const commit = ()=>{
+        const v = input.value.trim();
+        l.title = v || hostnameOf(l.url);
+        l.editing = false;
+        persistLinks();
+        renderLinks();
+      };
+      input.addEventListener('keydown', e=>{ if(e.key==='Enter') commit(); });
+      input.addEventListener('blur', ()=>setTimeout(commit, 0));
+      input.focus();
+      input.select();
+    } else {
+      tile.querySelector('.lt-del').onclick = (e)=>{
+        e.stopPropagation();
+        state.links = state.links.filter(x=>x.id!==l.id);
+        persistLinks();
+        renderLinks();
+      };
+      tile.querySelector('.lt-title').onclick = (e)=>{
+        e.stopPropagation();
+        l.editing = true;
+        renderLinks();
+      };
+      tile.onclick = ()=>{ window.open(l.url, '_blank'); };
+    }
+  });
+}
+
+function onAddLink(){
+  const input = document.getElementById('newLinkInput');
+  const url = normalizeUrl(input.value);
+  if(!url){
+    alert('Не похоже на ссылку. Проверь адрес.');
+    return;
+  }
+  state.links.push({ id:newId('link'), url, title:'', editing:false });
+  input.value = '';
+  persistLinks();
+  renderLinks();
+}
+
+async function persistLinks(){
+  const clean = state.links.map(({editing, ...rest})=>rest);
+  await safeSet(keyFor(state.currentCategoryId, 'links'), JSON.stringify(clean));
 }
 
 function buildShell(){
@@ -911,6 +1070,13 @@ function buildShell(){
       <button id="addBtn">+</button>
     </div>
 
+    <div class="section-lbl">ССЫЛКИ</div>
+    <div class="links-row" id="linksRow"></div>
+    <div class="add-row">
+      <input type="text" id="newLinkInput" placeholder="вставь ссылку" style="flex:1;" maxlength="500">
+      <button id="addLinkBtn">+</button>
+    </div>
+
     <div class="stats">
       <div>7 дней: <span class="v" id="pct7">0%</span></div>
       <div>выполнено всего: <span class="v" id="allDone">0</span></div>
@@ -927,6 +1093,10 @@ function buildShell(){
   document.getElementById('addTickerBtn').onclick = onAddTicker;
   document.getElementById('newTickerPct').addEventListener('keydown', e=>{
     if(e.key==='Enter') onAddTicker();
+  });
+  document.getElementById('addLinkBtn').onclick = onAddLink;
+  document.getElementById('newLinkInput').addEventListener('keydown', e=>{
+    if(e.key==='Enter') onAddLink();
   });
   document.getElementById('resetLink').onclick = onReset;
 }
@@ -1091,6 +1261,7 @@ function recomputeParentDone(t){
 
 function renderAll(){
   renderTickers();
+  renderLinks();
 
   const cat = state.categories.find(c=>c.id===state.currentCategoryId);
   document.getElementById('catTitle').textContent = cat ? cat.name.toUpperCase() : 'ДИСЦИПЛИНА';
@@ -1217,13 +1388,15 @@ function deleteTask(id){
 }
 
 async function onReset(){
-  if(!confirm('Удалить задачи, дела и историю этой категории? Это нельзя отменить.')) return;
+  if(!confirm('Удалить задачи, дела, ссылки и историю этой категории? Это нельзя отменить.')) return;
   const id = state.currentCategoryId;
   await safeDelete(keyFor(id, 'tasks-current'));
   await safeDelete(keyFor(id, 'history'));
   await safeDelete(keyFor(id, 'tickers'));
+  await safeDelete(keyFor(id, 'links'));
   state.history = {};
   state.tickers = [];
+  state.links = [];
   state.tasksCurrent = { date: todayStr(), tasks: [] };
   state.expandedIds = new Set();
   await persistCurrent();
