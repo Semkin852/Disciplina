@@ -652,6 +652,138 @@
     font-family:'IBM Plex Sans', sans-serif;
   }
   .link-edit-row input:focus{ outline:none; }
+
+  /* ===== search (home) ===== */
+  .search-row{ margin-bottom:18px; }
+  .search-row input{
+    width:100%;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:3px;
+    color:var(--text);
+    padding:10px 12px;
+    font-size:14px;
+    font-family:'IBM Plex Sans', sans-serif;
+  }
+  .search-row input::placeholder{ color:var(--text-faint); }
+  .search-row input:focus{ outline:none; border-color:var(--accent); }
+  .search-results{
+    margin-top:8px;
+    border:1px solid var(--border);
+    border-radius:4px;
+    overflow:hidden;
+    display:none;
+  }
+  .search-result{
+    padding:10px 12px;
+    font-size:13px;
+    border-bottom:1px solid var(--border);
+    cursor:pointer;
+  }
+  .search-result:last-child{ border-bottom:none; }
+  .search-result .sr-cat{ color:var(--accent); font-weight:600; }
+  .search-result:hover{ background:var(--panel); }
+  .search-empty{
+    padding:10px 12px;
+    font-size:12px;
+    color:var(--text-faint);
+  }
+
+  /* ===== backup (home) ===== */
+  .backup-row{
+    display:flex;
+    gap:8px;
+    margin-top:6px;
+  }
+  .backup-row button{
+    flex:1;
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    border-radius:3px;
+    padding:10px;
+    font-size:12.5px;
+    cursor:pointer;
+  }
+  .backup-row button:hover{ border-color:var(--accent); color:var(--accent); }
+
+  /* ===== color swatches (new category) ===== */
+  .color-swatches{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+  }
+  .swatch{
+    width:18px; height:18px;
+    border-radius:50%;
+    cursor:pointer;
+    border:2px solid transparent;
+  }
+  .swatch.selected{ border-color:#fff; }
+
+  /* ===== month chart ===== */
+  .month-chart{
+    display:flex;
+    align-items:flex-end;
+    gap:2px;
+    height:54px;
+    margin-bottom:6px;
+    border-bottom:1px solid var(--border);
+    padding-bottom:2px;
+  }
+  .month-bar{
+    flex:1;
+    background:var(--border);
+    border-radius:1px;
+    min-height:2px;
+  }
+  .month-bar.has-data{ background:var(--accent); }
+  .month-chart-labels{
+    display:flex;
+    justify-content:space-between;
+    font-size:9px;
+    color:var(--text-faint);
+    margin-bottom:18px;
+  }
+
+  /* ===== move task between categories ===== */
+  .task-row .move{
+    color:var(--text-faint);
+    cursor:pointer;
+    font-size:13px;
+    padding:0 3px;
+    flex:0 0 auto;
+  }
+  .task-row .move:hover{ color:var(--accent); }
+  .move-panel{
+    margin:0 0 8px 26px;
+    padding:6px 0 6px 12px;
+    border-left:1px dashed var(--border);
+    display:flex;
+    gap:6px;
+    align-items:center;
+  }
+  .move-panel select{
+    flex:1;
+    min-width:0;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:3px;
+    color:var(--text);
+    padding:6px 8px;
+    font-size:12px;
+    font-family:'IBM Plex Sans', sans-serif;
+  }
+  .move-panel button{
+    background:var(--accent);
+    border:none;
+    color:var(--bg);
+    border-radius:3px;
+    padding:6px 10px;
+    font-size:12px;
+    cursor:pointer;
+    flex:0 0 auto;
+  }
 </style>
 </head>
 <body>
@@ -661,12 +793,16 @@
 const MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const WEEKDAYS_FULL = ['понедельник','вторник','среда','четверг','пятница','суббота','воскресенье'];
 const WEEKDAYS_SHORT = ['ПН','ВТ','СР','ЧТ','ПТ','СБ','ВС'];
+const PALETTE = ['#e8602c','#2d3338','#7a3d22','#3a4146','#3d6e74','#4a5a8a'];
 
 let state = {
   view: 'home',
   categories: [],
   currentCategoryId: null,
   addingCategory: false,
+  newCategoryColor: PALETTE[0],
+  pendingCategoryName: '',
+  movingTaskId: null,
   tasksCurrent: null, history: {}, tickers: [], links: [], expandedIds: new Set()
 };
 
@@ -772,6 +908,7 @@ async function openCategory(id){
   state.tickers = tickers;
   state.links = links;
   state.expandedIds = new Set();
+  state.movingTaskId = null;
   state.view = 'category';
 
   buildShell();
@@ -856,32 +993,72 @@ function buildHomeShell(){
         <div class="date" id="homeDateLine"></div>
       </div>
     </div>
+
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="поиск задач по всем категориям">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+
     <div class="section-lbl">КАТЕГОРИИ</div>
     <div class="category-grid" id="categoryRow"></div>
+
+    <div class="section-lbl">ДАННЫЕ</div>
+    <div class="backup-row">
+      <button id="exportAllBtn">скачать бэкап</button>
+      <button id="importAllBtn">восстановить из файла</button>
+    </div>
+    <input type="file" id="importFileInput" accept="application/json" style="display:none;">
   `;
   const today = todayDate();
   document.getElementById('homeDateLine').textContent =
     `${today.getDate()} ${MONTHS[today.getMonth()]} · ${WEEKDAYS_FULL[mon0(today)]}`;
+
+  let searchTimer = null;
+  document.getElementById('searchInput').addEventListener('input', ()=>{
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(onSearchInput, 200);
+  });
+  document.getElementById('exportAllBtn').onclick = exportAllData;
+  document.getElementById('importAllBtn').onclick = ()=>{
+    document.getElementById('importFileInput').click();
+  };
+  document.getElementById('importFileInput').addEventListener('change', onImportFileChange);
 }
 
 function renderHome(){
   const row = document.getElementById('categoryRow');
   if(!row) return;
 
-  row.innerHTML = state.categories.map((c,i)=>`
-    <div class="category-tile c${i%4}" data-id="${c.id}">
+  row.innerHTML = state.categories.map((c,i)=>{
+    const styleAttr = c.color ? ` style="background:${c.color}"` : '';
+    const cls = c.color ? '' : ` c${i%4}`;
+    return `
+    <div class="category-tile${cls}" data-id="${c.id}"${styleAttr}>
       <div class="del">×</div>
       <div class="name">${escapeHtml(c.name)}</div>
       <div class="sub mono" id="sub_${c.id}">…</div>
     </div>
-  `).join('') + (
+  `;
+  }).join('') + (
     state.addingCategory
       ? `<div class="category-add-form">
-           <input type="text" id="newCategoryName" placeholder="название" maxlength="40">
+           <input type="text" id="newCategoryName" placeholder="название" maxlength="40" value="${escapeHtml(state.pendingCategoryName)}">
+           <div class="color-swatches" id="colorSwatches">
+             ${PALETTE.map((hex,idx)=>`<div class="swatch${hex===state.newCategoryColor?' selected':''}" data-color="${hex}" style="background:${hex}"></div>`).join('')}
+           </div>
            <button id="confirmCategoryBtn">+</button>
          </div>`
       : `<div class="category-add-tile" id="addCategoryTile">+</div>`
   );
+
+  if(state.addingCategory){
+    document.getElementById('colorSwatches').querySelectorAll('.swatch').forEach(sw=>{
+      sw.onclick = ()=>{
+        state.newCategoryColor = sw.getAttribute('data-color');
+        renderHome();
+      };
+    });
+  }
 
   state.categories.forEach(c=>{
     const tile = row.querySelector(`.category-tile[data-id="${c.id}"]`);
@@ -896,13 +1073,16 @@ function renderHome(){
     const btn = document.getElementById('confirmCategoryBtn');
     const commit = ()=>{
       const name = input.value.trim();
-      if(!name) { state.addingCategory=false; renderHome(); return; }
+      if(!name) { state.addingCategory=false; state.pendingCategoryName=''; renderHome(); return; }
       const id = newId('catg');
-      state.categories.push({ id, name });
+      state.categories.push({ id, name, color: state.newCategoryColor });
       state.addingCategory = false;
+      state.pendingCategoryName = '';
+      state.newCategoryColor = PALETTE[0];
       persistCategories();
       renderHome();
     };
+    input.addEventListener('input', ()=>{ state.pendingCategoryName = input.value; });
     btn.onclick = commit;
     input.addEventListener('keydown', e=>{ if(e.key==='Enter') commit(); });
     input.focus();
@@ -942,6 +1122,94 @@ async function onDeleteCategory(id, name){
   state.categories = state.categories.filter(c=>c.id!==id);
   await persistCategories();
   renderHome();
+}
+
+async function onSearchInput(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const resultsEl = document.getElementById('searchResults');
+  if(!q){ resultsEl.innerHTML=''; resultsEl.style.display='none'; return; }
+
+  let matches = [];
+  for(const c of state.categories){
+    const raw = await safeGet(keyFor(c.id, 'tasks-current'));
+    if(!raw) continue;
+    let cur;
+    try{ cur = JSON.parse(raw); }catch(e){ continue; }
+    const tasks = normalizeTasks(cur.tasks);
+    tasks.forEach(t=>{
+      if(t.text.toLowerCase().includes(q)){
+        matches.push({ catId:c.id, catName:c.name, text:t.text });
+      }
+      (t.subtasks||[]).forEach(s=>{
+        if(s.text.toLowerCase().includes(q)){
+          matches.push({ catId:c.id, catName:c.name, text:s.text });
+        }
+      });
+    });
+  }
+
+  resultsEl.style.display = 'block';
+  resultsEl.innerHTML = matches.length
+    ? matches.map(m=>`<div class="search-result" data-cat="${m.catId}"><span class="sr-cat">${escapeHtml(m.catName)}</span> — ${escapeHtml(m.text)}</div>`).join('')
+    : `<div class="search-empty">ничего не найдено</div>`;
+  resultsEl.querySelectorAll('.search-result').forEach(el=>{
+    el.onclick = ()=>openCategory(el.getAttribute('data-cat'));
+  });
+}
+
+async function exportAllData(){
+  const payload = { categories: state.categories, data: {} };
+  for(const c of state.categories){
+    const tc = await safeGet(keyFor(c.id, 'tasks-current'));
+    const hi = await safeGet(keyFor(c.id, 'history'));
+    const tk = await safeGet(keyFor(c.id, 'tickers'));
+    const lk = await safeGet(keyFor(c.id, 'links'));
+    payload.data[c.id] = {
+      tasksCurrent: tc ? JSON.parse(tc) : null,
+      history: hi ? JSON.parse(hi) : {},
+      tickers: tk ? JSON.parse(tk) : [],
+      links: lk ? JSON.parse(lk) : []
+    };
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `disciplina-backup-${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function onImportFileChange(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async (ev)=>{
+    let payload;
+    try{ payload = JSON.parse(ev.target.result); }
+    catch(err){ alert('Не удалось прочитать файл бэкапа.'); return; }
+    if(!payload || !payload.categories || !payload.data){
+      alert('Файл повреждён или это бэкап другой версии.');
+      return;
+    }
+    if(!confirm('Это заменит текущие категории и данные содержимым бэкапа. Продолжить?')) return;
+
+    state.categories = payload.categories;
+    await persistCategories();
+    for(const c of state.categories){
+      const d = payload.data[c.id] || {};
+      await safeSet(keyFor(c.id, 'tasks-current'), JSON.stringify(d.tasksCurrent || { date: todayStr(), tasks: [] }));
+      await safeSet(keyFor(c.id, 'history'), JSON.stringify(d.history || {}));
+      await safeSet(keyFor(c.id, 'tickers'), JSON.stringify(d.tickers || []));
+      await safeSet(keyFor(c.id, 'links'), JSON.stringify(d.links || []));
+    }
+    alert('Бэкап восстановлен.');
+    e.target.value = '';
+    goHome();
+  };
+  reader.readAsText(file);
 }
 
 /* ===== links ===== */
@@ -1058,6 +1326,10 @@ function buildShell(){
     </div>
 
     <div class="week" id="weekStrip"></div>
+
+    <div class="section-lbl">МЕСЯЦ</div>
+    <div class="month-chart" id="monthChart"></div>
+    <div class="month-chart-labels"><span>30 дней назад</span><span>сегодня</span></div>
 
     <div class="section-lbl">ПРИОРИТЕТ</div>
     <div class="priority-box" id="priorityBox"></div>
@@ -1194,16 +1466,34 @@ function renderTaskRowHtml(t){
   const comp = taskCompletion(t);
   const isDone = comp ? comp.done===comp.total : t.done;
   const expanded = state.expandedIds.has(t.id);
+  const moving = state.movingTaskId === t.id;
   return `
     <div class="task-row${isDone?' done':''}" data-id="${t.id}">
       <div class="box"></div>
       <div class="txt">${escapeHtml(t.text)}</div>
       ${comp ? `<div class="badge mono">${comp.done}/${comp.total}</div>` : ''}
       <div class="star${t.priority?' on':''}">★</div>
+      <div class="move">⇄</div>
       <div class="chevron">${expanded?'▾':'▸'}</div>
       <div class="del">×</div>
     </div>
+    ${moving ? renderMovePanelHtml(t) : ''}
     ${expanded ? renderSubtaskPanelHtml(t) : ''}
+  `;
+}
+
+function renderMovePanelHtml(t){
+  const others = state.categories.filter(c=>c.id!==state.currentCategoryId);
+  if(others.length===0){
+    return `<div class="move-panel" data-move="${t.id}"><span style="color:var(--text-faint);font-size:12px;">нет других категорий</span></div>`;
+  }
+  return `
+    <div class="move-panel" data-move="${t.id}">
+      <select class="move-select">
+        ${others.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}
+      </select>
+      <button class="move-confirm">→</button>
+    </div>
   `;
 }
 
@@ -1232,8 +1522,17 @@ function attachTaskHandlers(container){
     row.querySelector('.box').onclick = ()=>toggleDone(id);
     row.querySelector('.txt').onclick = ()=>toggleDone(id);
     row.querySelector('.star').onclick = ()=>togglePriority(id);
+    row.querySelector('.move').onclick = ()=>toggleMove(id);
     row.querySelector('.chevron').onclick = ()=>toggleExpand(id);
     row.querySelector('.del').onclick = ()=>deleteTask(id);
+  });
+  container.querySelectorAll('.move-panel').forEach(panel=>{
+    const taskId = panel.getAttribute('data-move');
+    const select = panel.querySelector('.move-select');
+    const btn = panel.querySelector('.move-confirm');
+    if(select && btn){
+      btn.onclick = ()=>moveTaskToCategory(taskId, select.value);
+    }
   });
   container.querySelectorAll('.subtask-panel').forEach(panel=>{
     const parentId = panel.getAttribute('data-parent');
@@ -1259,6 +1558,21 @@ function recomputeParentDone(t){
   if(t.subtasks && t.subtasks.length>0) t.done = t.subtasks.every(s=>s.done);
 }
 
+function computeMonthBars(combined){
+  const today = todayDate();
+  const bars = [];
+  for(let i=29;i>=0;i--){
+    const d = new Date(today.getTime() - i*86400000);
+    const rec = combined[fmt(d)];
+    if(rec && rec.total>0){
+      bars.push({ pct: Math.round(rec.done/rec.total*100), hasData:true });
+    } else {
+      bars.push({ pct:0, hasData:false });
+    }
+  }
+  return bars;
+}
+
 function renderAll(){
   renderTickers();
   renderLinks();
@@ -1281,6 +1595,11 @@ function renderAll(){
       <div class="sq ${c.status}${c.isToday?' today':''}"></div>
     </div>
   `).join('');
+
+  const monthBars = computeMonthBars(combined);
+  document.getElementById('monthChart').innerHTML = monthBars.map(b=>
+    `<div class="month-bar${b.hasData?' has-data':''}" style="height:${b.hasData?Math.max(b.pct,4):2}%"></div>`
+  ).join('');
 
   const tasks = state.tasksCurrent.tasks;
   const priorityTask = tasks.find(t=>t.priority);
@@ -1347,6 +1666,28 @@ function togglePriority(id){
 function toggleExpand(id){
   if(state.expandedIds.has(id)) state.expandedIds.delete(id);
   else state.expandedIds.add(id);
+  renderAll();
+}
+
+function toggleMove(id){
+  state.movingTaskId = state.movingTaskId === id ? null : id;
+  renderAll();
+}
+
+async function moveTaskToCategory(taskId, targetCatId){
+  const idx = state.tasksCurrent.tasks.findIndex(x=>x.id===taskId);
+  if(idx===-1) return;
+  const [task] = state.tasksCurrent.tasks.splice(idx, 1);
+  task.priority = false;
+  state.movingTaskId = null;
+  await persistCurrent();
+
+  const targetRaw = await safeGet(keyFor(targetCatId, 'tasks-current'));
+  let targetCur = targetRaw ? JSON.parse(targetRaw) : { date: todayStr(), tasks: [] };
+  targetCur.tasks = normalizeTasks(targetCur.tasks);
+  targetCur.tasks.push(task);
+  await safeSet(keyFor(targetCatId, 'tasks-current'), JSON.stringify(targetCur));
+
   renderAll();
 }
 
