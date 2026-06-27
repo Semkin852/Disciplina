@@ -784,6 +784,165 @@
     cursor:pointer;
     flex:0 0 auto;
   }
+
+  /* ===== file attachments on ДЕЛА ===== */
+  .ticker-files{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:6px;
+  }
+  .file-chip{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:3px;
+    padding:4px 8px;
+    font-size:11px;
+    color:var(--text-dim);
+    cursor:pointer;
+    max-width:150px;
+  }
+  .file-chip .fc-name{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .file-chip .fc-del{
+    color:var(--text-faint);
+    cursor:pointer;
+    flex:0 0 auto;
+  }
+  .file-chip .fc-del:hover{ color:var(--accent); }
+  .attach-btn{
+    display:inline-block;
+    font-size:11px;
+    color:var(--accent);
+    cursor:pointer;
+    margin-top:6px;
+    border:1px dashed var(--accent-dim);
+    border-radius:3px;
+    padding:4px 8px;
+  }
+
+  /* ===== atoms (independent section) ===== */
+  .atom-group{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:10px 12px;
+    margin-bottom:10px;
+  }
+  .atom-head{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .atom-head .atom-title{
+    flex:1;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    word-break:break-word;
+  }
+  .atom-head .atom-badge{
+    font-size:10.5px;
+    color:var(--text-dim);
+    border:1px solid var(--border);
+    border-radius:2px;
+    padding:1px 5px;
+    flex:0 0 auto;
+  }
+  .atom-head .chevron{
+    cursor:pointer;
+    color:var(--text-faint);
+    font-size:12px;
+    padding:0 4px;
+    flex:0 0 auto;
+  }
+  .atom-head .del{
+    cursor:pointer;
+    color:var(--text-faint);
+    font-size:15px;
+    padding:0 4px;
+    flex:0 0 auto;
+  }
+  .atom-head .del:hover{ color:var(--accent); }
+  .atom-group-edit input{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--accent);
+    border-radius:3px;
+    color:var(--text);
+    padding:6px 8px;
+    font-size:14px;
+    font-family:'IBM Plex Sans', sans-serif;
+  }
+  .atom-items{
+    margin-top:8px;
+  }
+  .atom-item-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:5px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .atom-item-row .box{
+    width:16px; height:16px;
+    flex:0 0 16px;
+    border:1.3px solid var(--text-dim);
+    border-radius:2px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .atom-item-row .box.done{ background:var(--done); border-color:var(--done); }
+  .atom-item-row .box.done::after{ content:'✓'; color:var(--bg); font-size:10px; font-weight:700; }
+  .atom-item-row .txt{
+    flex:1;
+    font-size:13px;
+    cursor:pointer;
+    word-break:break-word;
+  }
+  .atom-item-row .txt.done{ color:var(--text-faint); text-decoration:line-through; }
+  .atom-item-row .del{
+    color:var(--text-faint);
+    cursor:pointer;
+    font-size:14px;
+    padding:0 4px;
+    flex:0 0 auto;
+  }
+  .atom-item-row .del:hover{ color:var(--accent); }
+  .atom-add-row{
+    display:flex;
+    gap:6px;
+    margin-top:6px;
+  }
+  .atom-add-row input{
+    flex:1;
+    min-width:0;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:3px;
+    color:var(--text);
+    padding:6px 8px;
+    font-size:12.5px;
+    font-family:'IBM Plex Sans', sans-serif;
+  }
+  .atom-add-row input:focus{ outline:none; border-color:var(--accent); }
+  .atom-add-row button{
+    background:transparent;
+    border:1px solid var(--accent);
+    color:var(--accent);
+    border-radius:3px;
+    padding:0 10px;
+    font-size:13px;
+    cursor:pointer;
+  }
 </style>
 </head>
 <body>
@@ -803,7 +962,7 @@ let state = {
   newCategoryColor: PALETTE[0],
   pendingCategoryName: '',
   movingTaskId: null,
-  tasksCurrent: null, history: {}, tickers: [], links: [], expandedIds: new Set()
+  tasksCurrent: null, history: {}, tickers: [], links: [], atoms: [], expandedAtomIds: new Set(), expandedIds: new Set()
 };
 
 function fmt(d){
@@ -885,9 +1044,14 @@ async function openCategory(id){
 
   let tickersRaw = await safeGet(keyFor(id, 'tickers'));
   let tickers = tickersRaw ? JSON.parse(tickersRaw) : [];
+  tickers = tickers.map(t=>({...t, files: t.files || []}));
 
   let linksRaw = await safeGet(keyFor(id, 'links'));
   let links = linksRaw ? JSON.parse(linksRaw) : [];
+
+  let atomsRaw = await safeGet(keyFor(id, 'atoms'));
+  let atoms = atomsRaw ? JSON.parse(atomsRaw) : [];
+  atoms = atoms.map(g=>({...g, items:(g.items||[]).map(it=>({...it}))}));
 
   const t = todayStr();
 
@@ -907,6 +1071,8 @@ async function openCategory(id){
   state.tasksCurrent = cur;
   state.tickers = tickers;
   state.links = links;
+  state.atoms = atoms;
+  state.expandedAtomIds = new Set();
   state.expandedIds = new Set();
   state.movingTaskId = null;
   state.view = 'category';
@@ -1119,6 +1285,7 @@ async function onDeleteCategory(id, name){
   await safeDelete(keyFor(id, 'history'));
   await safeDelete(keyFor(id, 'tickers'));
   await safeDelete(keyFor(id, 'links'));
+  await safeDelete(keyFor(id, 'atoms'));
   state.categories = state.categories.filter(c=>c.id!==id);
   await persistCategories();
   renderHome();
@@ -1164,11 +1331,13 @@ async function exportAllData(){
     const hi = await safeGet(keyFor(c.id, 'history'));
     const tk = await safeGet(keyFor(c.id, 'tickers'));
     const lk = await safeGet(keyFor(c.id, 'links'));
+    const at = await safeGet(keyFor(c.id, 'atoms'));
     payload.data[c.id] = {
       tasksCurrent: tc ? JSON.parse(tc) : null,
       history: hi ? JSON.parse(hi) : {},
       tickers: tk ? JSON.parse(tk) : [],
-      links: lk ? JSON.parse(lk) : []
+      links: lk ? JSON.parse(lk) : [],
+      atoms: at ? JSON.parse(at) : []
     };
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
@@ -1204,6 +1373,7 @@ function onImportFileChange(e){
       await safeSet(keyFor(c.id, 'history'), JSON.stringify(d.history || {}));
       await safeSet(keyFor(c.id, 'tickers'), JSON.stringify(d.tickers || []));
       await safeSet(keyFor(c.id, 'links'), JSON.stringify(d.links || []));
+      await safeSet(keyFor(c.id, 'atoms'), JSON.stringify(d.atoms || []));
     }
     alert('Бэкап восстановлен.');
     e.target.value = '';
@@ -1349,6 +1519,13 @@ function buildShell(){
       <button id="addLinkBtn">+</button>
     </div>
 
+    <div class="section-lbl">АТОМЫ</div>
+    <div class="tasks" id="atomList"></div>
+    <div class="add-row">
+      <input type="text" id="newAtomInput" placeholder="что разобрать на шаги" style="flex:1;" maxlength="200">
+      <button id="addAtomBtn">+</button>
+    </div>
+
     <div class="stats">
       <div>7 дней: <span class="v" id="pct7">0%</span></div>
       <div>выполнено всего: <span class="v" id="allDone">0</span></div>
@@ -1370,7 +1547,151 @@ function buildShell(){
   document.getElementById('newLinkInput').addEventListener('keydown', e=>{
     if(e.key==='Enter') onAddLink();
   });
+  document.getElementById('addAtomBtn').onclick = onAddAtom;
+  document.getElementById('newAtomInput').addEventListener('keydown', e=>{
+    if(e.key==='Enter') onAddAtom();
+  });
   document.getElementById('resetLink').onclick = onReset;
+}
+
+/* ===== atoms (independent breakdown, not tied to days or tasks) ===== */
+function atomCompletion(a){
+  if(a.steps && a.steps.length>0){
+    const done = a.steps.filter(s=>s.done).length;
+    return { done, total: a.steps.length };
+  }
+  return null;
+}
+
+function renderAtomRowHtml(a){
+  const comp = atomCompletion(a);
+  const isDone = comp ? comp.done===comp.total : false;
+  const expanded = state.expandedAtomIds.has(a.id);
+  return `
+    <div class="task-row${isDone?' done':''}" data-id="${a.id}">
+      <div class="box"></div>
+      <div class="txt">${escapeHtml(a.name)}</div>
+      ${comp ? `<div class="badge mono">${comp.done}/${comp.total}</div>` : ''}
+      <div class="chevron">${expanded?'▾':'▸'}</div>
+      <div class="del">×</div>
+    </div>
+    ${expanded ? renderAtomStepsPanelHtml(a) : ''}
+  `;
+}
+
+function renderAtomStepsPanelHtml(a){
+  const steps = a.steps || [];
+  return `
+    <div class="subtask-panel" data-parent="${a.id}">
+      ${steps.map(s=>`
+        <div class="subtask-row" data-id="${s.id}">
+          <div class="sub-box${s.done?' done':''}"></div>
+          <div class="sub-txt${s.done?' done':''}">${escapeHtml(s.text)}</div>
+          <div class="sub-del">×</div>
+        </div>
+      `).join('')}
+      <div class="sub-add-row">
+        <input type="text" class="sub-add-input" placeholder="атомарный шаг…" maxlength="150">
+        <button class="sub-add-btn">+</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderAtoms(){
+  const list = document.getElementById('atomList');
+  if(!list) return;
+  list.innerHTML = state.atoms.map(a=>renderAtomRowHtml(a)).join('');
+
+  list.querySelectorAll('.task-row').forEach(row=>{
+    const id = row.getAttribute('data-id');
+    row.querySelector('.box').onclick = ()=>toggleAtomDone(id);
+    row.querySelector('.txt').onclick = ()=>toggleAtomDone(id);
+    row.querySelector('.chevron').onclick = ()=>toggleAtomExpand(id);
+    row.querySelector('.del').onclick = ()=>deleteAtom(id);
+  });
+  list.querySelectorAll('.subtask-panel').forEach(panel=>{
+    const parentId = panel.getAttribute('data-parent');
+    panel.querySelectorAll('.subtask-row').forEach(srow=>{
+      const sid = srow.getAttribute('data-id');
+      srow.querySelector('.sub-box').onclick = ()=>toggleAtomStepDone(parentId, sid);
+      srow.querySelector('.sub-txt').onclick = ()=>toggleAtomStepDone(parentId, sid);
+      srow.querySelector('.sub-del').onclick = ()=>deleteAtomStep(parentId, sid);
+    });
+    const input = panel.querySelector('.sub-add-input');
+    const btn = panel.querySelector('.sub-add-btn');
+    const commit = ()=>{
+      const txt = input.value.trim();
+      if(!txt) return;
+      addAtomStep(parentId, txt);
+    };
+    btn.onclick = commit;
+    input.addEventListener('keydown', e=>{ if(e.key==='Enter') commit(); });
+  });
+}
+
+function onAddAtom(){
+  const input = document.getElementById('newAtomInput');
+  const text = input.value.trim();
+  if(!text) return;
+  state.atoms.push({ id:newId('atom'), name:text, steps:[] });
+  input.value = '';
+  persistAtoms();
+  renderAtoms();
+}
+
+function toggleAtomDone(id){
+  const a = state.atoms.find(x=>x.id===id);
+  if(!a || !a.steps || a.steps.length===0) return;
+  const allDone = a.steps.every(s=>s.done);
+  const newVal = !allDone;
+  a.steps.forEach(s=>s.done=newVal);
+  persistAtoms();
+  renderAtoms();
+}
+
+function toggleAtomExpand(id){
+  if(state.expandedAtomIds.has(id)) state.expandedAtomIds.delete(id);
+  else state.expandedAtomIds.add(id);
+  renderAtoms();
+}
+
+function addAtomStep(atomId, text){
+  const a = state.atoms.find(x=>x.id===atomId);
+  if(!a) return;
+  if(!a.steps) a.steps = [];
+  a.steps.push({ id:newId('atomstep'), text, done:false });
+  persistAtoms();
+  renderAtoms();
+}
+
+function toggleAtomStepDone(atomId, stepId){
+  const a = state.atoms.find(x=>x.id===atomId);
+  if(!a) return;
+  const s = a.steps.find(x=>x.id===stepId);
+  if(!s) return;
+  s.done = !s.done;
+  persistAtoms();
+  renderAtoms();
+}
+
+function deleteAtomStep(atomId, stepId){
+  const a = state.atoms.find(x=>x.id===atomId);
+  if(!a) return;
+  a.steps = a.steps.filter(x=>x.id!==stepId);
+  persistAtoms();
+  renderAtoms();
+}
+
+function deleteAtom(id){
+  state.atoms = state.atoms.filter(x=>x.id!==id);
+  state.expandedAtomIds.delete(id);
+  persistAtoms();
+  renderAtoms();
+}
+
+async function persistAtoms(){
+  await safeSet(keyFor(state.currentCategoryId, 'atoms'), JSON.stringify(state.atoms));
 }
 
 /* ===== tickers ===== */
@@ -1398,6 +1719,15 @@ function renderTickers(){
           <span class="dim-track"><span class="dim-fill" style="width:${t.percent}%"></span></span>
           <span class="dim-tick"></span>
         </div>
+        ${(t.files&&t.files.length) ? `<div class="ticker-files">${t.files.map(f=>`
+          <div class="file-chip" data-file="${f.id}">
+            <span class="fc-name">${f.mime==='pdf'?'📄':'📊'} ${escapeHtml(f.name)}</span>
+            <span class="fc-del">×</span>
+          </div>`).join('')}</div>` : ''}
+        <label class="attach-btn">
+          📎 прикрепить файл
+          <input type="file" class="ticker-file-input" data-ticker="${t.id}" accept=".pdf,.xls,.xlsx,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none;">
+        </label>
       </div>`;
   }).join('');
 
@@ -1429,8 +1759,63 @@ function renderTickers(){
         persistTickers();
         renderTickers();
       };
+      row.querySelectorAll('.file-chip').forEach(chip=>{
+        const fileId = chip.getAttribute('data-file');
+        chip.querySelector('.fc-name').onclick = ()=>downloadTickerFile(t.id, fileId);
+        chip.querySelector('.fc-del').onclick = (e)=>{
+          e.stopPropagation();
+          removeTickerFile(t.id, fileId);
+        };
+      });
+      const fileInput = row.querySelector('.ticker-file-input');
+      if(fileInput) fileInput.addEventListener('change', (e)=>onTickerFileChange(t.id, e));
     }
   });
+}
+
+const MAX_ATTACH_BYTES = 1.5 * 1024 * 1024;
+
+function onTickerFileChange(tickerId, e){
+  const file = e.target.files[0];
+  if(!file) return;
+  if(file.size > MAX_ATTACH_BYTES){
+    alert('Файл больше 1.5 МБ — общее хранилище общее на всё приложение, лучше выбрать файл поменьше.');
+    e.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    const t = state.tickers.find(x=>x.id===tickerId);
+    if(!t) return;
+    if(!t.files) t.files = [];
+    const mime = /pdf/i.test(file.type) || /\.pdf$/i.test(file.name) ? 'pdf' : 'xls';
+    t.files.push({ id:newId('file'), name:file.name, mime, size:file.size, dataUrl: ev.target.result });
+    persistTickers();
+    renderTickers();
+  };
+  reader.onerror = ()=>{ alert('Не удалось прочитать файл.'); };
+  reader.readAsDataURL(file);
+}
+
+function downloadTickerFile(tickerId, fileId){
+  const t = state.tickers.find(x=>x.id===tickerId);
+  if(!t) return;
+  const f = (t.files||[]).find(x=>x.id===fileId);
+  if(!f) return;
+  const a = document.createElement('a');
+  a.href = f.dataUrl;
+  a.download = f.name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function removeTickerFile(tickerId, fileId){
+  const t = state.tickers.find(x=>x.id===tickerId);
+  if(!t) return;
+  t.files = (t.files||[]).filter(x=>x.id!==fileId);
+  persistTickers();
+  renderTickers();
 }
 
 function onAddTicker(){
@@ -1442,7 +1827,7 @@ function onAddTicker(){
   if(isNaN(pct)) pct = 0;
   pct = Math.max(0, Math.min(100, pct));
   const id = newId('ticker');
-  state.tickers.push({ id, name, percent: pct, editing:false });
+  state.tickers.push({ id, name, percent: pct, editing:false, files:[] });
   nameInput.value=''; pctInput.value='';
   persistTickers();
   renderTickers();
@@ -1576,6 +1961,7 @@ function computeMonthBars(combined){
 function renderAll(){
   renderTickers();
   renderLinks();
+  renderAtoms();
 
   const cat = state.categories.find(c=>c.id===state.currentCategoryId);
   document.getElementById('catTitle').textContent = cat ? cat.name.toUpperCase() : 'ДИСЦИПЛИНА';
@@ -1729,15 +2115,18 @@ function deleteTask(id){
 }
 
 async function onReset(){
-  if(!confirm('Удалить задачи, дела, ссылки и историю этой категории? Это нельзя отменить.')) return;
+  if(!confirm('Удалить задачи, дела, ссылки, атомы и историю этой категории? Это нельзя отменить.')) return;
   const id = state.currentCategoryId;
   await safeDelete(keyFor(id, 'tasks-current'));
   await safeDelete(keyFor(id, 'history'));
   await safeDelete(keyFor(id, 'tickers'));
   await safeDelete(keyFor(id, 'links'));
+  await safeDelete(keyFor(id, 'atoms'));
   state.history = {};
   state.tickers = [];
   state.links = [];
+  state.atoms = [];
+  state.expandedAtomIds = new Set();
   state.tasksCurrent = { date: todayStr(), tasks: [] };
   state.expandedIds = new Set();
   await persistCurrent();
