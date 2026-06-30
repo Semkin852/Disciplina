@@ -943,6 +943,134 @@
     font-size:13px;
     cursor:pointer;
   }
+
+  /* ===== moon calendar ===== */
+  .moon-card{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:14px;
+    margin-bottom:26px;
+    cursor:pointer;
+  }
+  .moon-card .moon-icon{ font-size:28px; line-height:1; flex:0 0 auto; }
+  .moon-card .moon-info{ flex:1; }
+  .moon-card .moon-title{ font-size:13px; font-weight:600; letter-spacing:0.06em; margin-bottom:3px; }
+  .moon-card .moon-sub{ font-size:11.5px; color:var(--text-dim); }
+  .moon-card .moon-arrow{ color:var(--text-faint); font-size:18px; flex:0 0 auto; }
+
+  .moon-nav{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .moon-nav button{
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:3px;
+    padding:6px 12px;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .moon-nav .moon-month-label{
+    font-size:14px;
+    font-weight:600;
+    text-transform:capitalize;
+  }
+
+  .moon-weekday-row{
+    display:grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap:4px;
+    margin-bottom:6px;
+  }
+  .moon-weekday-row div{
+    text-align:center;
+    font-size:10px;
+    color:var(--text-faint);
+  }
+  .moon-grid{
+    display:grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap:4px;
+    margin-bottom:20px;
+  }
+  .moon-day{
+    aspect-ratio:1/1;
+    border-radius:4px;
+    border:1px solid var(--border);
+    background:var(--panel);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    position:relative;
+    gap:2px;
+  }
+  .moon-day.empty{ visibility:hidden; cursor:default; }
+  .moon-day .md-num{ font-size:11px; color:var(--text-dim); }
+  .moon-day .md-icon{ font-size:14px; line-height:1; }
+  .moon-day.good{ border-color:var(--accent-dim); }
+  .moon-day.good::after{
+    content:'';
+    position:absolute;
+    bottom:3px; left:50%;
+    transform:translateX(-50%);
+    width:4px; height:4px;
+    border-radius:50%;
+    background:var(--done);
+  }
+  .moon-day.bad::after{
+    content:'';
+    position:absolute;
+    bottom:3px; left:50%;
+    transform:translateX(-50%);
+    width:4px; height:4px;
+    border-radius:50%;
+    background:#b6503f;
+  }
+  .moon-day.neutral::after{
+    content:'';
+    position:absolute;
+    bottom:3px; left:50%;
+    transform:translateX(-50%);
+    width:4px; height:4px;
+    border-radius:50%;
+    background:var(--text-faint);
+  }
+  .moon-day.today{ box-shadow:0 0 0 1.5px var(--accent); }
+  .moon-day.selected{ background:var(--panel-2); }
+
+  .moon-detail{
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:14px;
+    margin-bottom:16px;
+  }
+  .moon-detail .md-date{ font-size:13px; color:var(--text-dim); margin-bottom:6px; }
+  .moon-detail .md-phase{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .moon-detail .md-phase .icon{ font-size:30px; }
+  .moon-detail .md-phase .name{ font-size:15px; font-weight:600; }
+  .moon-detail .md-phase .pct{ font-size:11px; color:var(--text-faint); }
+  .moon-detail .md-verdict{
+    font-size:13px;
+    padding:8px 10px;
+    border-radius:3px;
+    border-left:3px solid var(--done);
+  }
+  .moon-detail .md-verdict.bad{ border-left-color:#b6503f; }
+  .moon-detail .md-verdict.neutral{ border-left-color:var(--text-faint); }
+  .moon-disclaimer{
+    font-size:10.5px;
+    color:var(--text-faint);
+    line-height:1.4;
+  }
 </style>
 </head>
 <body>
@@ -954,6 +1082,73 @@ const WEEKDAYS_FULL = ['понедельник','вторник','среда','�
 const WEEKDAYS_SHORT = ['ПН','ВТ','СР','ЧТ','ПТ','СБ','ВС'];
 const PALETTE = ['#e8602c','#2d3338','#7a3d22','#3a4146','#3d6e74','#4a5a8a'];
 
+const MOON_PHASE_NAMES = ['Новолуние','Растущий месяц','Первая четверть','Растущая Луна','Полнолуние','Убывающая Луна','Последняя четверть','Убывающий месяц'];
+const MOON_PHASE_ICONS = ['🌑','🌒','🌓','🌔','🌕','🌖','🌗','🌘'];
+const SYNODIC_MONTH = 29.530588853;
+const KNOWN_NEW_MOON = Date.UTC(2000,0,6,18,14,0);
+
+/* Компиляция распространённых характеристик 30 лунных суток (народная традиция,
+   разные источники дают разные формулировки — это одна согласованная версия). */
+const LUNAR_DAYS = [
+  { title:'Начало',     note:'Чистый лист, новый цикл — день для замыслов, не для резких шагов.', verdict:'neutral' },
+  { title:'Дело',       note:'Практичность и конкретные действия — благоприятен для важных решений.', verdict:'good' },
+  { title:'Накал',      note:'Всплеск эмоций, риск вспыльчивости — решения лучше отложить.', verdict:'bad' },
+  { title:'Испытание',  note:'День противоречий и препятствий — не лучшее время для важных шагов.', verdict:'bad' },
+  { title:'Мудрость',   note:'Ясность мысли и дальновидность — хорош для взвешенных решений.', verdict:'good' },
+  { title:'Равновесие', note:'Гармоничный, устойчивый день — благоприятен для решений.', verdict:'good' },
+  { title:'Подъём',     note:'Лёгкость в делах и общении — удачное время действовать.', verdict:'good' },
+  { title:'Истощение',  note:'Перерасход энергии, усталость — важные дела лучше отложить.', verdict:'bad' },
+  { title:'Тень',       note:'День искушений и риска — повышенная осторожность.', verdict:'bad' },
+  { title:'Реализация', note:'Замыслы воплощаются в жизнь — благоприятен для решений.', verdict:'good' },
+  { title:'Перегруз',   note:'Много энергии, но легко переутомиться — действуй умеренно.', verdict:'neutral' },
+  { title:'Накопление', note:'День внутренней работы — не для громких решений.', verdict:'neutral' },
+  { title:'Скрытое',    note:'Не всё очевидно — спешить с выводами не стоит.', verdict:'neutral' },
+  { title:'Сила',       note:'Мощный день реальных действий — благоприятен для решений.', verdict:'good' },
+  { title:'Соблазн',    note:'День плотских искушений — нужен самоконтроль, не для решений.', verdict:'bad' },
+  { title:'Иллюзия',    note:'Обман, иллюзии — то, что кажется верным, может не быть таким.', verdict:'bad' },
+  { title:'Очищение',   note:'День для уборки и завершения дел, не для новых начинаний.', verdict:'neutral' },
+  { title:'Опасность',  note:'Скрытые риски — повышенная осторожность во всём.', verdict:'bad' },
+  { title:'Страсть',    note:'Резкость и горячность в поступках — решения подождут.', verdict:'bad' },
+  { title:'Гармония',   note:'Лёгкое общение, ясные договорённости — благоприятен.', verdict:'good' },
+  { title:'Уверенность',note:'Сильный, решительный день — хорош для важных шагов.', verdict:'good' },
+  { title:'Покой',      note:'Ровный, нейтральный фон — без явных подсказок.', verdict:'neutral' },
+  { title:'Конфликт',   note:'Риск споров и трений — лучше отложить серьёзные решения.', verdict:'bad' },
+  { title:'Ясность',    note:'Лёгкие, удачные начинания — благоприятен для решений.', verdict:'good' },
+  { title:'Чистка',     note:'День очищения тела и духа — не для новых решений.', verdict:'neutral' },
+  { title:'Интуиция',   note:'Внутренний голос важнее логики — слушай, но не торопись.', verdict:'neutral' },
+  { title:'Итоги',      note:'День подведения итогов, не начинаний.', verdict:'neutral' },
+  { title:'Удача',      note:'Лёгкость и попутный ветер в делах — благоприятен.', verdict:'good' },
+  { title:'Тишина',     note:'Спокойный день для отдыха, без резких движений.', verdict:'neutral' },
+  { title:'Обновление', note:'Короткий день прощения и завершения — бывает не каждый месяц.', verdict:'neutral' }
+];
+
+function getLunarDay(date){
+  const age = moonAgeDays(date);
+  const num = Math.min(30, Math.floor(age) + 1);
+  const d = LUNAR_DAYS[num-1];
+  return { number:num, title:d.title, note:d.note, verdict:d.verdict };
+}
+
+function moonAgeDays(date){
+  const diff = (date.getTime() - KNOWN_NEW_MOON) / 86400000;
+  let age = diff % SYNODIC_MONTH;
+  if(age < 0) age += SYNODIC_MONTH;
+  return age;
+}
+
+function computeMoonPhase(date){
+  const age = moonAgeDays(date);
+  const segLen = SYNODIC_MONTH / 8;
+  let seg = Math.floor(age / segLen) % 8;
+  const illumination = Math.round((1 - Math.cos(2*Math.PI*age/SYNODIC_MONTH)) / 2 * 100);
+  return {
+    age, seg,
+    name: MOON_PHASE_NAMES[seg],
+    icon: MOON_PHASE_ICONS[seg],
+    illumination
+  };
+}
+
 let state = {
   view: 'home',
   categories: [],
@@ -962,6 +1157,8 @@ let state = {
   newCategoryColor: PALETTE[0],
   pendingCategoryName: '',
   movingTaskId: null,
+  moonViewDate: null,
+  moonSelectedDate: null,
   tasksCurrent: null, history: {}, tickers: [], links: [], atoms: [], expandedAtomIds: new Set(), expandedIds: new Set()
 };
 
@@ -1088,6 +1285,95 @@ function goHome(){
   renderHome();
 }
 
+function openMoonView(){
+  state.view = 'moon';
+  state.moonViewDate = todayDate();
+  state.moonSelectedDate = todayDate();
+  buildMoonShell();
+  renderMoonView();
+}
+
+function buildMoonShell(){
+  document.getElementById('app').innerHTML = `
+    <div class="back-link" id="backLink">‹ все категории</div>
+    <div class="head" style="border-top:none;">
+      <div><h1>ЛУННЫЙ КАЛЕНДАРЬ</h1></div>
+    </div>
+    <div class="moon-nav">
+      <button id="moonPrev">‹</button>
+      <div class="moon-month-label" id="moonMonthLabel"></div>
+      <button id="moonNext">›</button>
+    </div>
+    <div class="moon-weekday-row">${WEEKDAYS_SHORT.map(d=>`<div>${d}</div>`).join('')}</div>
+    <div class="moon-grid" id="moonGrid"></div>
+    <div class="moon-detail" id="moonDetail"></div>
+    <div class="moon-disclaimer">Фаза луны рассчитана астрономически и точна. Характеристика лунных суток и благоприятность для решений — народная традиция; разные источники дают разные формулировки, здесь — одна обобщённая версия, не научный факт.</div>
+  `;
+  document.getElementById('backLink').onclick = goHome;
+  document.getElementById('moonPrev').onclick = ()=>moonChangeMonth(-1);
+  document.getElementById('moonNext').onclick = ()=>moonChangeMonth(1);
+}
+
+function moonChangeMonth(delta){
+  const d = state.moonViewDate;
+  state.moonViewDate = new Date(d.getFullYear(), d.getMonth()+delta, 1);
+  renderMoonView();
+}
+
+function renderMoonView(){
+  const viewDate = state.moonViewDate;
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+
+  document.getElementById('moonMonthLabel').textContent =
+    `${MONTHS[month]} ${year}`;
+
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const leadEmpty = mon0(firstDay);
+  const todayStrVal = todayStr();
+  const selectedStrVal = fmt(state.moonSelectedDate);
+
+  let cells = [];
+  for(let i=0;i<leadEmpty;i++) cells.push(`<div class="moon-day empty"></div>`);
+  for(let day=1; day<=daysInMonth; day++){
+    const d = new Date(year, month, day);
+    const ds = fmt(d);
+    const mp = computeMoonPhase(d);
+    const ld = getLunarDay(d);
+    const cls = ['moon-day', ld.verdict];
+    if(ds===todayStrVal) cls.push('today');
+    if(ds===selectedStrVal) cls.push('selected');
+    cells.push(`<div class="${cls.join(' ')}" data-date="${ds}">
+      <div class="md-icon">${mp.icon}</div>
+      <div class="md-num">${day}</div>
+    </div>`);
+  }
+  document.getElementById('moonGrid').innerHTML = cells.join('');
+
+  document.querySelectorAll('.moon-day[data-date]').forEach(cell=>{
+    cell.onclick = ()=>{
+      state.moonSelectedDate = new Date(cell.getAttribute('data-date')+'T00:00:00');
+      renderMoonView();
+    };
+  });
+
+  const mp = computeMoonPhase(state.moonSelectedDate);
+  const ld = getLunarDay(state.moonSelectedDate);
+  const dateLabel = `${state.moonSelectedDate.getDate()} ${MONTHS[state.moonSelectedDate.getMonth()]} · ${WEEKDAYS_FULL[mon0(state.moonSelectedDate)]}`;
+  document.getElementById('moonDetail').innerHTML = `
+    <div class="md-date">${dateLabel}</div>
+    <div class="md-phase">
+      <div class="icon">${mp.icon}</div>
+      <div>
+        <div class="name">${ld.number}-е лунные сутки · «${escapeHtml(ld.title)}»</div>
+        <div class="pct mono">${mp.name} · освещённость ${mp.illumination}%</div>
+      </div>
+    </div>
+    <div class="md-verdict ${ld.verdict}">${ld.note}</div>
+  `;
+}
+
 function combinedHistory(){
   const combined = {...state.history};
   const tasks = state.tasksCurrent.tasks;
@@ -1165,6 +1451,15 @@ function buildHomeShell(){
       <div class="search-results" id="searchResults"></div>
     </div>
 
+    <div class="moon-card" id="moonCard">
+      <div class="moon-icon" id="moonIconHome">🌑</div>
+      <div class="moon-info">
+        <div class="moon-title">ЛУННЫЙ КАЛЕНДАРЬ</div>
+        <div class="moon-sub" id="moonSubHome">…</div>
+      </div>
+      <div class="moon-arrow">›</div>
+    </div>
+
     <div class="section-lbl">КАТЕГОРИИ</div>
     <div class="category-grid" id="categoryRow"></div>
 
@@ -1178,6 +1473,14 @@ function buildHomeShell(){
   const today = todayDate();
   document.getElementById('homeDateLine').textContent =
     `${today.getDate()} ${MONTHS[today.getMonth()]} · ${WEEKDAYS_FULL[mon0(today)]}`;
+
+  const mp = computeMoonPhase(today);
+  const ld = getLunarDay(today);
+  document.getElementById('moonIconHome').textContent = mp.icon;
+  const verdictLabel = ld.verdict==='good' ? 'благоприятный день' : ld.verdict==='bad' ? 'не лучший день' : 'нейтральный день';
+  document.getElementById('moonSubHome').textContent =
+    `${ld.number}-е лунные сутки · ${mp.name} · ${verdictLabel} для решений`;
+  document.getElementById('moonCard').onclick = openMoonView;
 
   let searchTimer = null;
   document.getElementById('searchInput').addEventListener('input', ()=>{
